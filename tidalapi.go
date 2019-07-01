@@ -44,7 +44,8 @@ const (
 )
 
 const (
-	LOSSLESS = iota
+	MASTER = iota
+	LOSSLESS
 	HIGH
 	LOW
 )
@@ -53,7 +54,7 @@ const (
 	TIDALAPITOKEN = "BI218mwp9ERZ3PFI"
 )
 
-var Quality = map[int]string{LOSSLESS: "LOSSLESS", HIGH: "HIGH", LOW: "LOW"}
+var Quality = map[int]string{MASTER: "HI_RES", LOSSLESS: "LOSSLESS", HIGH: "HIGH", LOW: "LOW"}
 
 var Types = map[string]interface{}{
 	LOGIN: new(Login),
