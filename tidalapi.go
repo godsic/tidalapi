@@ -145,7 +145,7 @@ func (s *Session) Login(username, password string) error {
 
 	err := s.request("POST", LOGIN, params, data, l)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	s.sessionID = l.SessionId
 	s.countryCode = l.CountryCode
@@ -168,7 +168,6 @@ func (s *Session) DownloadImage(id string) ([]byte, error) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -191,7 +190,7 @@ func (s *Session) request(method, uri string, params, data url.Values, response 
 
 	refURI, err := url.Parse(uri)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	reqURL := s.Configuration.apiLocation.ResolveReference(refURI)
 
@@ -207,7 +206,6 @@ func (s *Session) request(method, uri string, params, data url.Values, response 
 
 	req, err := http.NewRequest(method, reqURL.String(), strings.NewReader(data.Encode()))
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 
@@ -220,13 +218,11 @@ func (s *Session) request(method, uri string, params, data url.Values, response 
 
 	resp, err := s.Client.Do(req)
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 	defer resp.Body.Close()
@@ -245,7 +241,6 @@ func (s *Session) request(method, uri string, params, data url.Values, response 
 func ToMap(obj []byte, data interface{}) error {
 	err := json.Unmarshal(obj, data)
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 	return nil
