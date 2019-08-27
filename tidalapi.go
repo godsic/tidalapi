@@ -29,18 +29,18 @@ import (
 // )
 
 const (
-	LOGIN          = "login/username"
-	FAVORITETRACKS = "users/%v/favorites/tracks"
-	TRACK          = "tracks/%v"
-	TRACKURL       = "tracks/%v/streamUrl"
-	TRACKRADIO     = "tracks/%v/radio"
-	ARTIST         = "artists/%v"
-	ARTISTTRACKS   = "artists/%v/favorites/tracks"
-	ARTISTRADIO    = "artists/%v/radio"
-	ALBUM          = "albums/%v"
-	ALBUMTRACKS    = "albums/%v/tracks"
-	PLAYLIST       = "playlists/%v"
-	PLAYLISTTRACKS = "playlists/%v/tracks"
+	LOGIN           = "login/username"
+	FAVORITETRACKS  = "users/%v/favorites/tracks"
+	TRACK           = "tracks/%v"
+	TRACKURL        = "tracks/%v/streamUrl"
+	TRACKRADIO      = "tracks/%v/radio"
+	ARTIST          = "artists/%v"
+	ARTISTTOPTRACKS = "artists/%v/toptracks"
+	ARTISTRADIO     = "artists/%v/radio"
+	ALBUM           = "albums/%v"
+	ALBUMTRACKS     = "albums/%v/tracks"
+	PLAYLIST        = "playlists/%v"
+	PLAYLISTTRACKS  = "playlists/%v/tracks"
 )
 
 const (
