@@ -51,7 +51,7 @@ const (
 )
 
 const (
-	TIDALAPITOKEN = "BI218mwp9ERZ3PFI"
+	TIDALAPITOKEN = "kgsOOmYk3zShYrNP"
 )
 
 var Quality = map[int]string{MASTER: "HI_RES", LOSSLESS: "LOSSLESS", HIGH: "HIGH", LOW: "LOW"}
