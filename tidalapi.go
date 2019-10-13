@@ -151,6 +151,15 @@ func (s *Session) SaveSession(fn string) (err error) {
 	return err
 }
 
+func (s *Session) IsValid() bool {
+	usr := new(User)
+	err := s.Get(USER, s.User, usr)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 func (s *Session) generateClientUniqueKey() {
 	num := rand.Int63()
 	s.ClientUniqueKey = fmt.Sprintf("%02x", num)
