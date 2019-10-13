@@ -41,6 +41,7 @@ const (
 	ALBUMTRACKS     = "albums/%v/tracks"
 	PLAYLIST        = "playlists/%v"
 	PLAYLISTTRACKS  = "playlists/%v/tracks"
+	USER            = "users/%v"
 )
 
 const (

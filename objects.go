@@ -110,3 +110,19 @@ type Playlist struct {
 	Popularity     int     `json:"popularity"`
 	Tracks         *Tracks
 }
+
+type User struct {
+	Id           int
+	Username     string
+	FirstName    string
+	LastName     string
+	Email        string
+	CountryCode  string
+	Created      string
+	Picture      string
+	Newsletter   bool
+	AcceptedEULA bool
+	Gender       bool
+	DateOfBirth  string
+	FacebookUid  int
+}
