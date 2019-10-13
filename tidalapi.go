@@ -106,39 +106,66 @@ func (c *Config) Init(quality int) {
 }
 
 type Session struct {
-	clientUniqueKey string
-	sessionID       string
-	countryCode     string
+	ClientUniqueKey string
+	SessionID       string
+	CountryCode     string
 	User            int
-	Client          *http.Client
-	Configuration   *Config
+	Quality         string
+	client          *http.Client
+	configuration   *Config
 }
 
 func NewSession(quality int) *Session {
 	var s Session
 	var c Config
 	c.Init(quality)
-	s.Configuration = &c
-	s.Client = &http.Client{Timeout: 0 * time.Second, Transport: tr}
+	s.Quality = Quality[quality]
+	s.configuration = &c
+	s.client = &http.Client{Timeout: 0 * time.Second, Transport: tr}
 	return &s
+}
+
+func (s *Session) LoadSession(fn string) (err error) {
+	outBytes, err := ioutil.ReadFile(fn)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(outBytes, s)
+	if err != nil {
+		return err
+	}
+	if s.Quality != s.configuration.quality {
+		return errors.New("Cannot load session made for the different quality level")
+	}
+	s.configuration.values.Add("countryCode", s.CountryCode)
+	return nil
+}
+
+func (s *Session) SaveSession(fn string) (err error) {
+	outBytes, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(fn, outBytes, 0600)
+	return err
 }
 
 func (s *Session) generateClientUniqueKey() {
 	num := rand.Int63()
-	s.clientUniqueKey = fmt.Sprintf("%02x", num)
+	s.ClientUniqueKey = fmt.Sprintf("%02x", num)
 }
 
 func (s *Session) Login(username, password string) error {
-	if s.clientUniqueKey == "" {
+	if s.ClientUniqueKey == "" {
 		s.generateClientUniqueKey()
 	}
 	params := url.Values{}
 	data := url.Values{}
-	data.Add("clientUniqueKey", s.clientUniqueKey)
+	data.Add("clientUniqueKey", s.ClientUniqueKey)
 	data.Add("username", username)
 	data.Add("password", password)
 	data.Add("User-Agent", "TIDAL_ANDROID/680 okhttp/3.3.1")
-	data.Add("token", s.Configuration.apiToken)
+	data.Add("token", s.configuration.apiToken)
 	data.Add("clientVersion", "1.12.2")
 
 	l := new(Login)
@@ -147,11 +174,11 @@ func (s *Session) Login(username, password string) error {
 	if err != nil {
 		return err
 	}
-	s.sessionID = l.SessionId
-	s.countryCode = l.CountryCode
+	s.SessionID = l.SessionId
+	s.CountryCode = l.CountryCode
 	s.User = int(l.UserId)
 	// log.Println(l)
-	s.Configuration.values.Add("countryCode", s.countryCode)
+	s.configuration.values.Add("countryCode", s.CountryCode)
 
 	return nil
 }
@@ -178,7 +205,7 @@ func (s *Session) Get(what string, id interface{}, obj interface{}) error {
 	apiPath := fmt.Sprintf(what, id)
 	params := url.Values{}
 	data := url.Values{}
-	params.Add("soundQuality", s.Configuration.quality)
+	params.Add("soundQuality", s.configuration.quality)
 	err := s.request("GET", apiPath, params, data, obj)
 	if err != nil {
 		return err
@@ -192,10 +219,10 @@ func (s *Session) request(method, uri string, params, data url.Values, response 
 	if err != nil {
 		return err
 	}
-	reqURL := s.Configuration.apiLocation.ResolveReference(refURI)
+	reqURL := s.configuration.apiLocation.ResolveReference(refURI)
 
 	form := url.Values{}
-	for k, v := range s.Configuration.values {
+	for k, v := range s.configuration.values {
 		form.Add(k, v[0])
 	}
 	for k, v := range params {
@@ -212,11 +239,11 @@ func (s *Session) request(method, uri string, params, data url.Values, response 
 	req.Header.Add("User-Agent", "TIDAL_ANDROID/680 okhttp/3.3.1")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	if s.sessionID != "" {
-		req.Header.Add("X-Tidal-SessionId", s.sessionID)
+	if s.SessionID != "" {
+		req.Header.Add("X-Tidal-SessionId", s.SessionID)
 	}
 
-	resp, err := s.Client.Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return err
 	}
