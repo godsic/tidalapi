@@ -52,7 +52,7 @@ const (
 )
 
 const (
-	TIDALAPITOKEN = "MbjR4DLXz1ghC4rV"
+	TIDALAPITOKEN = "wc8j_yBJd20zOmx0"
 )
 
 var Quality = map[int]string{MASTER: "HI_RES", LOSSLESS: "LOSSLESS", HIGH: "HIGH", LOW: "LOW"}
@@ -174,9 +174,6 @@ func (s *Session) Login(username, password string) error {
 	data.Add("clientUniqueKey", s.ClientUniqueKey)
 	data.Add("username", username)
 	data.Add("password", password)
-	data.Add("User-Agent", "TIDAL_ANDROID/680 okhttp/3.3.1")
-	data.Add("token", s.configuration.apiToken)
-	data.Add("clientVersion", "1.12.2")
 
 	l := new(Login)
 
@@ -246,8 +243,11 @@ func (s *Session) request(method, uri string, params, data url.Values, response 
 		return err
 	}
 
-	req.Header.Add("User-Agent", "TIDAL_ANDROID/680 okhttp/3.3.1")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	if uri == LOGIN {
+		req.Header.Add("X-Tidal-Token", s.configuration.apiToken)
+	}
 
 	if s.SessionID != "" {
 		req.Header.Add("X-Tidal-SessionId", s.SessionID)
