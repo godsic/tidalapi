@@ -209,7 +209,7 @@ func (s *Session) DownloadImage(id string) ([]byte, error) {
 }
 
 func (s *Session) Get(what string, id interface{}, obj interface{}) error {
-	apiPath := fmt.Sprintf(what, id)
+	apiPath := fmt.Sprintf(what, url.QueryEscape(fmt.Sprintf("%v", id)))
 	params := url.Values{}
 	data := url.Values{}
 	params.Add("soundQuality", s.configuration.quality)
@@ -245,9 +245,7 @@ func (s *Session) request(method, uri string, params, data url.Values, response 
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	if uri == LOGIN {
-		req.Header.Add("X-Tidal-Token", s.configuration.apiToken)
-	}
+	req.Header.Add("X-Tidal-Token", s.configuration.apiToken)
 
 	if s.SessionID != "" {
 		req.Header.Add("X-Tidal-SessionId", s.SessionID)
