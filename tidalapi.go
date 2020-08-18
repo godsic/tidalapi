@@ -1,6 +1,9 @@
 package tidalapi
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +14,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 // const (
@@ -42,6 +47,8 @@ const (
 	PLAYLIST        = "playlists/%v"
 	PLAYLISTTRACKS  = "playlists/%v/tracks"
 	USER            = "users/%v"
+	SEARCH          = "search?query=%v"
+	SESSIONS        = "sessions"
 )
 
 const (
@@ -52,7 +59,8 @@ const (
 )
 
 const (
-	TIDALAPITOKEN = "wc8j_yBJd20zOmx0"
+	API_TOKEN = "wc8j_yBJd20zOmx0"
+	CLIENT_ID = "ck3zaWMi8Ka_XdI0"
 )
 
 var Quality = map[int]string{MASTER: "HI_RES", LOSSLESS: "LOSSLESS", HIGH: "HIGH", LOW: "LOW"}
@@ -95,25 +103,10 @@ type Config struct {
 
 func (c *Config) Init(quality int) {
 	c.quality = Quality[quality]
-	var err error
-	c.apiLocation, err = url.Parse("https://api.tidal.com/v1/")
-	if err != nil {
-		log.Fatal(err)
-	}
-	c.apiToken = TIDALAPITOKEN
+	c.apiLocation, _ = url.Parse("https://api.tidal.com/v1/")
 	v := url.Values{}
 	v.Add("limit", "999")
 	c.values = v
-}
-
-type Session struct {
-	ClientUniqueKey string
-	SessionID       string
-	CountryCode     string
-	User            int
-	Quality         string
-	client          *http.Client
-	configuration   *Config
 }
 
 func NewSession(quality int) *Session {
@@ -123,6 +116,26 @@ func NewSession(quality int) *Session {
 	s.Quality = Quality[quality]
 	s.configuration = &c
 	s.client = &http.Client{Timeout: 0 * time.Second, Transport: tr}
+
+	cc := make([]byte, 32)
+	rand.Read(cc)
+	s.CodeVerifier = base64.RawURLEncoding.EncodeToString(cc)
+
+	cs := sha256.Sum256([]byte(s.CodeVerifier))
+	s.CodeChallenge = base64.RawURLEncoding.EncodeToString(cs[:])
+
+	s.generateClientUniqueKey()
+
+	s.conf = &oauth2.Config{
+		ClientID:     CLIENT_ID,
+		ClientSecret: s.ClientUniqueKey,
+		Scopes:       []string{"r_usr", "w_usr", "w_sub"},
+		RedirectURL:  "https://tidal.com/android/login/auth",
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://login.tidal.com/authorize",
+			TokenURL: "https://auth.tidal.com/v1/oauth2/token",
+		},
+	}
 	return &s
 }
 
@@ -139,6 +152,19 @@ func (s *Session) LoadSession(fn string) (err error) {
 		return errors.New("Cannot load session made for the different quality level")
 	}
 	s.configuration.values.Add("countryCode", s.CountryCode)
+	if s.Token != nil {
+		s.conf = &oauth2.Config{
+			ClientID:     CLIENT_ID,
+			ClientSecret: s.ClientUniqueKey,
+			Scopes:       []string{"r_usr", "w_usr", "w_sub"},
+			RedirectURL:  "https://tidal.com/android/login/auth",
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  "https://login.tidal.com/authorize",
+				TokenURL: "https://auth.tidal.com/v1/oauth2/token",
+			},
+		}
+		s.client = s.conf.Client(context.Background(), s.Token)
+	}
 	return nil
 }
 
@@ -153,7 +179,7 @@ func (s *Session) SaveSession(fn string) (err error) {
 
 func (s *Session) IsValid() bool {
 	usr := new(User)
-	err := s.Get(USER, s.User, usr)
+	err := s.Get(USER, s.UserID, usr)
 	if err != nil {
 		return false
 	}
@@ -161,14 +187,15 @@ func (s *Session) IsValid() bool {
 }
 
 func (s *Session) generateClientUniqueKey() {
-	num := rand.Int63()
-	s.ClientUniqueKey = fmt.Sprintf("%02x", num)
+	cc := make([]byte, 16)
+	rand.Read(cc)
+	s.ClientUniqueKey = fmt.Sprintf("%02x", cc)
 }
 
 func (s *Session) Login(username, password string) error {
-	if s.ClientUniqueKey == "" {
-		s.generateClientUniqueKey()
-	}
+
+	s.configuration.apiToken = API_TOKEN
+
 	params := url.Values{}
 	data := url.Values{}
 	data.Add("clientUniqueKey", s.ClientUniqueKey)
@@ -182,9 +209,49 @@ func (s *Session) Login(username, password string) error {
 		return err
 	}
 	s.SessionID = l.SessionId
-	s.CountryCode = l.CountryCode
-	s.User = int(l.UserId)
-	// log.Println(l)
+
+	err = s.Get(SESSIONS, nil, s)
+	if err != nil {
+		return err
+	}
+
+	s.configuration.values.Add("countryCode", s.CountryCode)
+
+	return nil
+}
+
+func (s *Session) GetOauth2URL() (authURL string) {
+
+	authURL = s.conf.AuthCodeURL("state",
+		oauth2.AccessTypeOffline,
+		oauth2.SetAuthURLParam("appMode", "android"),
+		oauth2.SetAuthURLParam("code_challenge", s.CodeChallenge),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+		oauth2.SetAuthURLParam("response_type", "code"),
+		oauth2.SetAuthURLParam("client_unique_key", s.ClientUniqueKey),
+		oauth2.SetAuthURLParam("lang", "en_US"))
+
+	return authURL
+}
+
+func (s *Session) LoginWithOauth2Code(code string) (err error) {
+
+	ctx := context.Background()
+
+	s.Token, err = s.conf.Exchange(ctx, code,
+		oauth2.SetAuthURLParam("code_verifier", s.CodeVerifier),
+		oauth2.SetAuthURLParam("client_id", CLIENT_ID),
+		oauth2.SetAuthURLParam("client_unique_key", s.ClientUniqueKey))
+	if err != nil {
+		return err
+	}
+
+	s.client = s.conf.Client(ctx, s.Token)
+
+	err = s.Get(SESSIONS, nil, s)
+	if err != nil {
+		return err
+	}
 	s.configuration.values.Add("countryCode", s.CountryCode)
 
 	return nil
@@ -209,7 +276,10 @@ func (s *Session) DownloadImage(id string) ([]byte, error) {
 }
 
 func (s *Session) Get(what string, id interface{}, obj interface{}) error {
-	apiPath := fmt.Sprintf(what, url.QueryEscape(fmt.Sprintf("%v", id)))
+	apiPath := what
+	if id != nil {
+		apiPath = fmt.Sprintf(what, url.QueryEscape(fmt.Sprintf("%v", id)))
+	}
 	params := url.Values{}
 	data := url.Values{}
 	params.Add("soundQuality", s.configuration.quality)
@@ -243,12 +313,12 @@ func (s *Session) request(method, uri string, params, data url.Values, response 
 		return err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	req.Header.Add("X-Tidal-Token", s.configuration.apiToken)
-
-	if s.SessionID != "" {
-		req.Header.Add("X-Tidal-SessionId", s.SessionID)
+	if s.configuration.apiToken != "" {
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("X-Tidal-Token", s.configuration.apiToken)
+		if s.SessionID != "" {
+			req.Header.Add("X-Tidal-SessionId", s.SessionID)
+		}
 	}
 
 	resp, err := s.client.Do(req)

@@ -1,5 +1,11 @@
 package tidalapi
 
+import (
+	"net/http"
+
+	"golang.org/x/oauth2"
+)
+
 var (
 	IMGPATH = "https://resources.tidal.com/images/%s/%dx%d.jpg"
 )
@@ -8,6 +14,22 @@ type Login struct {
 	SessionId   string  `json:"sessionId"`
 	CountryCode string  `json:"countryCode"`
 	UserId      float32 `json:"userId"`
+}
+
+type Session struct {
+	ClientUniqueKey string
+	SessionID       string `json:"sessionId"`
+	CountryCode     string `json:"countryCode"`
+	UserID          int    `json:"userId"`
+	ChannelID       int    `json:"channelId"`
+	PartnerID       int    `json:"partnerId"`
+	Quality         string
+	CodeChallenge   string
+	CodeVerifier    string
+	Token           *oauth2.Token
+	client          *http.Client
+	configuration   *Config
+	conf            *oauth2.Config
 }
 
 type Error struct {
@@ -125,4 +147,17 @@ type User struct {
 	Gender       bool
 	DateOfBirth  string
 	FacebookUid  int
+}
+
+type Search struct {
+	Items  []Album `json:"items"`
+	Albums struct {
+		Items []Album `json:"items"`
+	} `json:"albums"`
+	Artists struct {
+		Items []Artist `json:"items"`
+	} `json:"artists"`
+	Tracks struct {
+		Items []Track `json:"items"`
+	} `json:"tracks"`
 }
